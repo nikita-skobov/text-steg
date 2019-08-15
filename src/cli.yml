@@ -18,20 +18,20 @@ subcommands:
             long: seed
             takes_value: true
             default_value: abcd
-            help: seed used to randomize the bit map shuffling. Must provide the seed used when encoding.
+            long_help: seed used to randomize the bit map shuffling. Must provide the seed used when encoding.
         - file:
             short: f
-            help: file to encode
+            long_help: file to encode
             takes_value: true
             long: file
         - output:
             short: o
-            help: name of file to output
+            long_help: name of file to output
             takes_value: true
             long: output
         - bits:
             short: b
-            help: number of bits 
+            long_help: number of bits 
             takes_value: true
             long: bits
             default_value: '4'

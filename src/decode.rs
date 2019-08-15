@@ -1,27 +1,10 @@
 use std::fs;
 
 use clap::ArgMatches;
-use bitstream_io::{BigEndian, BitReader, BitWriter};
+use bitstream_io::{BigEndian, BitWriter};
 
 use super::utils;
 
-pub fn get_value<'a>(matches: &'a ArgMatches, value_name: &str) -> Result<&'a str, String> {
-  match matches.value_of(value_name) {
-    Some(val) => {
-      Ok(val)
-    },
-    None => Err(format!("failed to get value of {}", value_name)),
-  }
-}
-
-pub fn get_numerical_value(matches: &ArgMatches, value_name: &str) -> Result<usize, String> {
-  let value_str = get_value(matches, value_name)?;
-
-  match value_str.parse::<usize>() {
-    Ok(parsed) => Ok(parsed),
-    Err(_) => Err(format!("Failed to parse '{}' as a number", value_str)),
-  }
-}
 
 pub fn get_file_contents(file_name: &str) -> Result<String, String> {
   match fs::read_to_string(file_name) {

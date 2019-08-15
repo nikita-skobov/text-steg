@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use clap::ArgMatches;
 use rand::{Rng, SeedableRng, prelude::StdRng};
 use arrayref::array_ref;
 use sha2::{Sha256, Digest};
@@ -11,6 +12,24 @@ const COMMON_CHARS: [char; 26] = [
   'w', 'f', 'g', 'y', 'p', 'b', 'v',
   'k', 'j', 'x', 'q', 'z'
 ];
+
+pub fn get_value<'a>(matches: &'a ArgMatches, value_name: &str) -> Result<&'a str, String> {
+  match matches.value_of(value_name) {
+    Some(val) => {
+      Ok(val)
+    },
+    None => Err(format!("failed to get value of {}", value_name)),
+  }
+}
+
+pub fn get_numerical_value(matches: &ArgMatches, value_name: &str) -> Result<usize, String> {
+  let value_str = get_value(matches, value_name)?;
+
+  match value_str.parse::<usize>() {
+    Ok(parsed) => Ok(parsed),
+    Err(_) => Err(format!("Failed to parse '{}' as a number", value_str)),
+  }
+}
 
 pub fn make_bit_to_char_map(num_bits: usize) -> HashMap<usize, char> {
   let mut bit_to_char_map: HashMap<usize, char> = HashMap::new();

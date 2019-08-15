@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 bitstream-io = "0.8"
 clap = { version = "~2.33", features = ["yaml"]}
-yaml-rust = "*"
 rand = "0.7.0"
 arrayref = "*"
 sha2 = "*"

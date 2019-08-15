@@ -14,10 +14,10 @@ pub fn get_file_contents(file_name: &str) -> Result<String, String> {
 }
 
 pub fn decode(matches: &ArgMatches) -> Result<(), String> {
-  let file = get_value(matches, "file")?;
-  let output = get_value(matches, "output")?;
-  let seed_str = get_value(matches, "seed")?;
-  let num_bits = get_numerical_value(matches, "bits")?;
+  let file = utils::get_value(matches, "file")?;
+  let output = utils::get_value(matches, "output")?;
+  let seed_str = utils::get_value(matches, "seed")?;
+  let num_bits = utils::get_numerical_value(matches, "bits")?;
 
   if num_bits > 8 || num_bits < 1 {
     return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));

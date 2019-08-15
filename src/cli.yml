@@ -7,6 +7,12 @@ subcommands:
   - decode:
       about: given a stego-text file, decode into the original source file
       args:
+        - algorithm:
+            short: a
+            long: algo
+            takes_value: true
+            default_value: char-bit-shuffle
+            long_help: "which algorithm to use when decoding. {n}Possible values:{n}    char-bit{n}    char-bit-shuffle{n}"
         - seed:
             short: s
             long: seed

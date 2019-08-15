@@ -13,6 +13,35 @@ const COMMON_CHARS: [char; 26] = [
   'k', 'j', 'x', 'q', 'z'
 ];
 
+pub enum ValueMode {
+  CharBitMap,
+  // the map contains 1 character for each bit position
+  // given a number of bits. ie: if 3 bits, the map contains 4 characters
+  // (1 extra character to explicitly map 0), if 8 bits, the map contains 9 characters.
+  // the value is determined by checking which characters are present, and if
+  // a character is present, that means the bit is set for that char.
+  // duplicate characters are irrelevant, since a bit can only be set once.
+  CharValueMap(usize),
+  // the map contains every character in the alphabet and assigns values ranging
+  // from 0 to 2^(num bits) - 1 in increments of powers of 2. the value is determined
+  // by adding the the value for each character present in a word. duplicate characters
+  // are allowed, since it will increase the value. If the value reaches
+  // 2^(num bits), it overflows and wraps back to 0.
+}
+
+pub enum Algorithm {
+  Shuffle(ValueMode),
+  NoShuffle(ValueMode),
+}
+
+pub fn get_algorithm_from_string(alg_str: &str) -> Result<Algorithm, String> {
+  match alg_str {
+    "char-bit" => Ok(Algorithm::NoShuffle(ValueMode::CharBitMap)),
+    "char-bit-shuffle" => Ok(Algorithm::Shuffle(ValueMode::CharBitMap)),
+    _ => Err(format!("Could not determine algorithm: {}", alg_str)),
+  }
+}
+
 pub fn get_value<'a>(matches: &'a ArgMatches, value_name: &str) -> Result<&'a str, String> {
   match matches.value_of(value_name) {
     Some(val) => {
@@ -72,22 +101,6 @@ pub fn is_skip_word(word: &str, char_to_bit_map: &HashMap<char, usize>) -> bool 
   }
 
   skip_word
-}
-
-pub enum ValueMode {
-  CharBitMap,
-  // the map contains 1 character for each bit position
-  // given a number of bits. ie: if 3 bits, the map contains 4 characters
-  // (1 extra character to explicitly map 0), if 8 bits, the map contains 9 characters.
-  // the value is determined by checking which characters are present, and if
-  // a character is present, that means the bit is set for that char.
-  // duplicate characters are irrelevant, since a bit can only be set once.
-  CharValueMap(usize),
-  // the map contains every character in the alphabet and assigns values ranging
-  // from 0 to 2^(num bits) - 1 in increments of powers of 2. the value is determined
-  // by adding the the value for each character present in a word. duplicate characters
-  // are allowed, since it will increase the value. If the value reaches
-  // 2^(num bits), it overflows and wraps back to 0.
 }
 
 pub fn get_value_from_chars(chars: &str, char_map: &HashMap<char, usize>, mode: &ValueMode) -> usize {

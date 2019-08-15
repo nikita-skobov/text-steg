@@ -2,6 +2,7 @@ use clap::{App, load_yaml};
 
 mod decode;
 mod encode;
+mod utils;
 
 use decode::decode;
 use encode::encode;

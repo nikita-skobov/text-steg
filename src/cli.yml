@@ -1,0 +1,78 @@
+name: text-steg
+version: "0.1.0"
+author: Nikita Skobov
+about: generate stego-text to hide arbitrary data
+
+subcommands:
+  - decode:
+      about: given a stego-text file, decode into the original source file
+      args:
+        - seed:
+            short: s
+            long: seed
+            takes_value: true
+            default_value: abcd
+            help: seed used to randomize the bit map shuffling. Must provide the seed used when encoding.
+        - file:
+            short: f
+            help: file to encode
+            takes_value: true
+            long: file
+        - output:
+            short: o
+            help: name of file to output
+            takes_value: true
+            long: output
+        - bits:
+            short: b
+            help: number of bits 
+            takes_value: true
+            long: bits
+            default_value: '4'
+  - encode:
+      about: given a source file, encode into a stego-text file
+      args:
+        - depth_skip:
+            long: depth-skip
+            takes_value: true
+            long_help: The threshold at which to stop the ngram backoff. {n}ie if ngram reaches a depth of 1, use a {n}skip word if possible.{n}
+            default_value: '0'
+        - consecutive_skips:
+            long: consecutive-skips
+            takes_value: true
+            long_help: The maximum number of consecutive skip words allowed. {n}Once the max is reached, it forces a non-skip word to be used, {n}and then resets.{n}
+            default_value: '1'
+        - words:
+            required: true
+            long: words
+            takes_value: true
+            long_help: file used to generate ngram structure.
+        - seed:
+            short: s
+            long: seed
+            takes_value: true
+            default_value: abcd
+            long_help: seed used to randomize the bit map shuffling. {n}You will need this seed to decode your output.{n}
+        - n:
+            short: n
+            takes_value: true
+            default_value: '2'
+            long_help: "the maximum n-depth for the ngrams generation.{n}"
+        - file:
+            required: true
+            short: f
+            long_help: file to encode
+            takes_value: true
+            long: file
+        - output:
+            required: true
+            short: o
+            long_help: name of file to output
+            takes_value: true
+            long: output
+        - bits:
+            short: b
+            long_help: number of bits 
+            takes_value: true
+            long: bits
+            default_value: '4'

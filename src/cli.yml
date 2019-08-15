@@ -38,6 +38,12 @@ subcommands:
   - encode:
       about: given a source file, encode into a stego-text file
       args:
+        - algorithm:
+            short: a
+            long: algo
+            takes_value: true
+            default_value: char-bit-shuffle
+            long_help: "which algorithm to use when decoding. {n}Possible values:{n}    char-bit{n}    char-bit-shuffle{n}"
         - depth_skip:
             long: depth-skip
             takes_value: true

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 
 use clap::ArgMatches;
 use rand::{Rng, SeedableRng, prelude::StdRng};
@@ -86,6 +87,28 @@ pub fn create_rng_from_seed(text: &str) -> StdRng {
   SeedableRng::from_seed(*seed)
 }
 
+pub fn format_text_for_ngrams(text: &str) -> String {
+  let mut new_text: String = text.to_string().to_lowercase();
+  if text.ends_with('.') {
+    new_text.push(' ');
+  }
+
+  let without_newlines = new_text.replace("\n", " \n ");
+  let without_carriage_returns = without_newlines.replace("\r", "");
+  let without_quotes = without_carriage_returns.replace("\"", "");
+  let without_single_quotes = without_quotes.replace("'", "");
+  let without_dashes = without_single_quotes.replace("-", " ");
+  let without_commas = without_dashes.replace(", ", " , ");
+  let without_exclamation = without_commas.replace("! ", " ! ");
+  let without_questions = without_exclamation.replace("? ", " ? ");
+  let without_semicolons = without_questions.replace("; ", " ; ");
+  let without_colons = without_semicolons.replace(": ", " : ");
+  let mut with_spaces = without_colons.replace(". ", " . ");
+  with_spaces.pop();
+  with_spaces = [". ", &with_spaces].join("");
+  with_spaces
+}
+
 
 pub fn is_skip_word(word: &str, char_to_bit_map: &HashMap<char, usize>) -> bool {
   let mut restricted_chars = vec![]; 
@@ -101,6 +124,44 @@ pub fn is_skip_word(word: &str, char_to_bit_map: &HashMap<char, usize>) -> bool 
   }
 
   skip_word
+}
+
+pub fn get_file_contents(file_name: &str) -> Result<Vec<u8>, String> {
+  match fs::read(file_name) {
+    Ok(data) => Ok(data),
+    Err(_) => Err(format!("Failed to read file: '{}'", file_name)),
+  }
+}
+
+pub fn get_file_contents_as_string(file_name: &str) -> Result<String, String> {
+  match fs::read_to_string(file_name) {
+    Ok(data) => Ok(data),
+    Err(_) => Err(format!("Failed to read file: '{}'", file_name)),
+  }
+}
+
+pub fn get_chars_from_value(val: u8, char_map: &HashMap<usize, char>, sorted_keys: &Vec<usize>) -> String {
+  let mut out_str = String::from("");
+  let mut val_remaining = val;
+  for num in 0..sorted_keys.len() {
+    let current_byte_val = sorted_keys[num];
+
+    if current_byte_val as u8 == val_remaining {
+      let some_char = char_map.get(&current_byte_val).unwrap();
+      out_str.push(*some_char);
+      // perfect match: ie if map is { 0: 'a', 1: 'b', 2: 'c' }
+      // and the val == 3, first we get to 2, which is less than 3
+      // so we add a c. next val_remaining is 1. 1 == 1 which maps to 'b'
+      // we push b to the out string, break, and return "cb"
+      break
+    } else if (current_byte_val as u8) < val_remaining {
+      let some_char = char_map.get(&current_byte_val).unwrap();
+      out_str.push(*some_char);
+      val_remaining -= current_byte_val as u8;
+    }
+  }
+  
+  out_str
 }
 
 pub fn get_value_from_chars(chars: &str, char_map: &HashMap<char, usize>, mode: &ValueMode) -> usize {

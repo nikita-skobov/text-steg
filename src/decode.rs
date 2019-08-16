@@ -6,13 +6,6 @@ use bitstream_io::{BigEndian, BitWriter};
 use super::utils;
 
 
-pub fn get_file_contents(file_name: &str) -> Result<String, String> {
-  match fs::read_to_string(file_name) {
-    Ok(data) => Ok(data),
-    Err(_) => Err(format!("Failed to read file: '{}'", file_name)),
-  }
-}
-
 pub fn decode(matches: &ArgMatches) -> Result<(), String> {
   let file = utils::get_value(matches, "file")?;
   let output = utils::get_value(matches, "output")?;
@@ -44,7 +37,7 @@ pub fn decode(matches: &ArgMatches) -> Result<(), String> {
 
 
   let mut bitwriter = BitWriter::endian(Vec::new(), BigEndian);
-  let contents = get_file_contents(file)?;
+  let contents = utils::get_file_contents_as_string(file)?;
 
   let encoded_words = contents.split(' ').collect::<Vec<&str>>();
 
@@ -56,7 +49,7 @@ pub fn decode(matches: &ArgMatches) -> Result<(), String> {
     }
 
     let value = utils::get_value_from_chars(word, &char_to_bit_map, &value_mode);
-    
+
     if use_shuffle {
       utils::fill_bit_to_char_map(&mut rng, &mut bit_to_char_map);
       char_to_bit_map = utils::make_char_to_bit_map(&bit_to_char_map);
@@ -71,6 +64,7 @@ pub fn decode(matches: &ArgMatches) -> Result<(), String> {
     bitwriter.write(write_bits, value as u8).unwrap();
     total_bits -= write_bits as usize;
   }
+
 
   let out_vec = bitwriter.into_writer();
   fs::write(output, out_vec).unwrap();

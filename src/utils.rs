@@ -35,14 +35,11 @@ pub enum Algorithm {
   NoShuffle(ValueMode),
 }
 
-pub fn get_algorithm_from_string(alg_str: &str) -> Result<Algorithm, String> {
+pub fn get_algorithm_from_string(alg_str: &str, num_bits: usize) -> Result<Algorithm, String> {
   match alg_str {
     "char-bit" => Ok(Algorithm::NoShuffle(ValueMode::CharBitMap)),
     "char-bit-shuffle" => Ok(Algorithm::Shuffle(ValueMode::CharBitMap)),
-    "char-value" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(1))),
-    "char-value-2" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(2))),
-    "char-value-3" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(3))),
-    "char-value-4" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(4))),
+    "char-value" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(num_bits))),
     _ => Err(format!("Could not determine algorithm: {}", alg_str)),
   }
 }
@@ -79,10 +76,14 @@ pub fn make_bit_to_char_map(num_bits: usize) -> HashMap<usize, char> {
   bit_to_char_map
 }
 
-pub fn make_char_to_value_map(max_exponent: usize) -> HashMap<char, usize> {
+pub fn get_max_value(exponent: usize) -> usize {
+  (2 as usize).pow(exponent as u32) - 1
+}
+
+pub fn make_char_to_value_map(exponent: usize) -> HashMap<char, usize> {
   let mut char_to_value_map: HashMap<char, usize> = HashMap::new();
 
-  let max_val: usize = (2 as usize).pow(max_exponent as u32) - 1;
+  let max_val = get_max_value(exponent);
   let mut current_val = 0;
   let mut max_it = COMMON_CHARS.len() / 2;
   for i in 0..max_it {
@@ -231,7 +232,7 @@ pub fn get_value_from_chars(chars: &str, char_map: &HashMap<char, usize>, mode: 
 
   match mode {
     ValueMode::CharBitMap => out_value,
-    ValueMode::CharValueMap(max_value) => out_value % max_value,
+    ValueMode::CharValueMap(exp) => out_value % (get_max_value(*exp) + 1),
   }
 }
 

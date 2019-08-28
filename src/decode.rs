@@ -17,7 +17,7 @@ pub fn decode(matches: &ArgMatches) -> Result<(), String> {
     return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));
   }
 
-  let alg = utils::get_algorithm_from_string(alg_str)?;
+  let alg = utils::get_algorithm_from_string(alg_str, num_bits)?;
 
   let (use_shuffle, value_mode) = match alg {
     utils::Algorithm::Shuffle(mode) => {

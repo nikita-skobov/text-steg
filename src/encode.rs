@@ -517,6 +517,53 @@ pub fn encode_char_bit_map(
   Ok(())
 }
 
+pub fn encode_char_value_map(
+  file: &str,
+  output: &str,
+  seed_str: &str,
+  word_file_name: &str,
+  n_depth: usize,
+  consecutive_skips: usize,
+  depth_skip_threshold: usize,
+  num_bits: usize,
+  use_shuffle: bool,
+  value_mode: utils::ValueMode,
+  value_mode_val: usize,
+) -> Result<(), String> {
+  let mut rng = utils::create_rng_from_seed(seed_str);
+  let mut original_rng = utils::create_rng_from_seed(seed_str);
+  let contents = utils::get_file_contents(file)?;
+  let mut word_file_data = utils::get_file_contents_as_string(word_file_name)?;
+
+  let mut char_to_value_map = utils::make_char_to_value_map(value_mode_val);
+  println!("{:?}", char_to_value_map);
+
+  word_file_data = word_file_data.to_lowercase();
+  word_file_data = utils::format_text_for_ngrams(&word_file_data);
+  let (
+    gram_hash,
+    unique_words,
+    total_words,
+  ) = generate_ngrams(&word_file_data, n_depth);
+
+  println!("num unique words: {}", unique_words.len());
+  // let word = "o";
+  // println!("{} = {}", word, utils::get_value_from_chars(word, &char_to_value_map, &value_mode));
+
+  let mut value_vec = vec![0; utils::get_max_value(value_mode_val) + 1];
+  println!("value vec: {:?}", value_vec);
+  for word in unique_words {
+    let value = utils::get_value_from_chars(word, &char_to_value_map, &value_mode);
+    value_vec[value] += 1;
+    // println!("{} = {}", word, utils::get_value_from_chars(word, &char_to_value_map, &value_mode));
+  }
+  println!("{:?}", value_vec);
+  // let mut original_bit_to_char_map = bit_to_char_map.clone();
+  // utils::fill_bit_to_char_map(&mut rng, &mut bit_to_char_map);
+  // utils::fill_bit_to_char_map(&mut original_rng, &mut original_bit_to_char_map);
+  Err(String::from("dsadsa"))
+}
+
 
 pub fn encode(matches: &ArgMatches) -> Result<(), String> {
   let file = utils::get_value(matches, "file")?;
@@ -533,7 +580,7 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
     return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));
   }
 
-  let alg = utils::get_algorithm_from_string(alg_str)?;
+  let alg = utils::get_algorithm_from_string(alg_str, num_bits)?;
 
   let (use_shuffle, value_mode) = match alg {
     utils::Algorithm::Shuffle(mode) => {
@@ -556,12 +603,25 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
         depth_skip_threshold,
         num_bits,
         use_shuffle,
-      )?;
+      )
     },
     utils::ValueMode::CharValueMap(val) => {
-      println!("using char value instead of char bit");
+      println!("using char value instead of char bit with num bits: {}", val);
+      encode_char_value_map(
+        file,
+        output,
+        seed_str,
+        word_file_name,
+        n_depth,
+        consecutive_skips,
+        depth_skip_threshold,
+        num_bits,
+        use_shuffle,
+        value_mode,
+        val,
+      )
     },
-  };
+  }
 
   // let mut rng = utils::create_rng_from_seed(seed_str);
   // let mut original_rng = utils::create_rng_from_seed(seed_str);
@@ -603,5 +663,5 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
   // println!("wordify: \n{}", text_data);
   // fs::write(output, text_data).unwrap();
 
-  Ok(())
+  // Ok(())
 }

@@ -413,6 +413,34 @@ pub fn wordify(
   Ok(text_data)
 }
 
+pub fn get_value_vec_from_char_value_mode(
+  file_contents: &Vec<u8>,
+  num_bits: usize,
+) -> Vec<u8> {
+  let mut cursor = Cursor::new(&file_contents);
+  let mut num_bits_remain = file_contents.len() * 8;
+  let mut bitreader = BitReader::endian(&mut cursor, BigEndian);
+  let mut value_vec = vec![];
+
+  while num_bits_remain > 0 {
+    let num_bits_to_read = if num_bits_remain < num_bits as usize {
+      num_bits_remain as u32
+    } else {
+      num_bits as u32
+    };
+    let value: u8 = bitreader.read(num_bits_to_read).unwrap();
+    
+    // if use_shuffle {
+    //   utils::fill_bit_to_char_map(rng, bit_to_char_map);
+    // }
+
+    value_vec.push(value);
+    num_bits_remain -= num_bits_to_read as usize;
+  }
+
+  value_vec
+}
+
 pub fn get_value_vec(
   bit_to_char_map: &mut HashMap<usize, char>,
   file_contents: &Vec<u8>,
@@ -462,6 +490,121 @@ pub fn get_value_vec(
   // in words using ngrams.
 
   value_vec
+}
+
+pub fn wordify_from_char_value_mode(
+  gram: &HashMap<Vec<&str>, usize>,
+  char_to_value_map: &HashMap<char, usize>,
+  n: usize,
+  file_values: Vec<u8>,
+  file_bits: usize,
+  unique_words: &Vec<&str>,
+  total_words: f64,
+  consecutive_skips: usize,
+  depth_skip_threshold: usize,
+  use_shuffle: bool,
+  value_mode: utils::ValueMode,
+) -> Result<String, String> {
+  let mut num_bits = file_bits;
+
+  // let num_words = unique_words.len();
+  let mut succ_count = 0;
+  let mut fail_count = 0;
+  let mut skip_count = 0;
+  let mut n_gram_used = vec![0; n];
+  let mut text_data = String::from("");
+  let mut current_words = get_initial_words(gram, n);
+  let mut i = 0;
+  let mut consecutive_skips_used = 0;
+
+  // let mut skip_words = vec![];
+  // if !use_shuffle {
+  //   for w in unique_words {
+  //     if utils::is_skip_word(w, &char_to_bit_map) {
+  //       skip_words.push(*w);
+  //     }
+  //   }
+  //   // if not shuffling, skip words get filled in once before
+  //   // iterating.
+  // }
+
+  while i < file_values.len() {
+    let current_val = file_values[i];
+    let mut used_skip_word = false;
+
+    let mut usable_words = vec![];
+
+    // let mut value_num_list = vec![0; max_value];
+    for w in unique_words {
+      if *w == "." || *w == "," || *w == "?" || *w == ";" {
+        continue;
+      }
+      // let word_val = get_value_from_word(w, char_value_map, max_value);
+      // // println!("value for {}: {}", w, get_value_from_word(w, char_value_map, 2));
+      // value_num_list[word_val] += 1;
+
+      let w_val = utils::get_value_from_chars(w, &char_to_value_map, &value_mode);
+      if w_val == current_val as usize {
+        usable_words.push(*w);
+      }
+    }
+
+    println!("number of words that fit value: {} = {}", current_val, usable_words.len());
+    // panic!("Dsadsa");
+    match usable_words.len() {
+      0 => {
+        panic!("NOT ENOUGH WORDS WITH VALUE {}", current_val);
+      },
+      1 => {
+        succ_count += 1;
+        let best_word = &usable_words[0];
+        text_data.push_str(best_word);
+        current_words.push(best_word);
+        text_data.push_str(" ");
+        n_gram_used[0] += 1;
+        consecutive_skips_used = 0;
+        // there is only one usable word, so use it without
+        // estimating any probabilities. ngram used a depth
+        // of 0 since we are not evaluating ngrams here.
+      },
+      _ => {
+        let (best_word, n_used) = get_best_word(
+          gram,
+          &usable_words,
+          &current_words,
+          n,
+          total_words,
+        );
+
+        succ_count += 1;
+        n_gram_used[n_used] += 1;
+        text_data.push_str(best_word);
+        current_words.push(best_word);
+        text_data.push_str(" ");
+        consecutive_skips_used = 0;
+        // if not using a skip word, we encoded the best possible word according
+        // to ngrams. add the best word to the text output, as well as the current
+        // words vec which is used to determine word probabilities for the next
+        // iteration
+      }
+    };
+
+    i += 1;
+  }
+
+  text_data.pop(); // remove trailing space
+
+  let num_bytes = (file_values.len() * num_bits) / 8;
+  // print summary
+  println!("\nencoding using {} bits per word. file had {} bytes, ie: {} words to wordify", num_bits, num_bytes, file_values.len());
+  println!("succesfully filled {} words", (succ_count + skip_count));
+  println!("of the {} words, {} were skip words", (succ_count + skip_count), skip_count);
+  println!("failed to find a word {} times", fail_count);
+  println!("average bits per word: {}\n", ((num_bytes * 8) as f64 / (succ_count + skip_count) as f64));
+
+  println!("\nN-depth summary: {:?}", n_gram_used);
+
+  Ok(text_data)
 }
 
 pub fn encode_char_bit_map(
@@ -528,15 +671,16 @@ pub fn encode_char_value_map(
   num_bits: usize,
   use_shuffle: bool,
   value_mode: utils::ValueMode,
-  value_mode_val: usize,
 ) -> Result<(), String> {
   let mut rng = utils::create_rng_from_seed(seed_str);
   let mut original_rng = utils::create_rng_from_seed(seed_str);
   let contents = utils::get_file_contents(file)?;
   let mut word_file_data = utils::get_file_contents_as_string(word_file_name)?;
 
-  let mut char_to_value_map = utils::make_char_to_value_map(value_mode_val);
-  println!("{:?}", char_to_value_map);
+  let mut char_to_value_map = utils::make_char_to_value_map(num_bits);
+
+  let mut value_vec = get_value_vec_from_char_value_mode(&contents, num_bits);
+
 
   word_file_data = word_file_data.to_lowercase();
   word_file_data = utils::format_text_for_ngrams(&word_file_data);
@@ -546,22 +690,23 @@ pub fn encode_char_value_map(
     total_words,
   ) = generate_ngrams(&word_file_data, n_depth);
 
-  println!("num unique words: {}", unique_words.len());
-  // let word = "o";
-  // println!("{} = {}", word, utils::get_value_from_chars(word, &char_to_value_map, &value_mode));
+  let text_data = wordify_from_char_value_mode(
+    &gram_hash,
+    &char_to_value_map,
+    n_depth,
+    value_vec,
+    contents.len() * 8,
+    &unique_words,
+    total_words as f64,
+    consecutive_skips,
+    depth_skip_threshold,
+    use_shuffle,
+    value_mode,
+  )?;
 
-  let mut value_vec = vec![0; utils::get_max_value(value_mode_val) + 1];
-  println!("value vec: {:?}", value_vec);
-  for word in unique_words {
-    let value = utils::get_value_from_chars(word, &char_to_value_map, &value_mode);
-    value_vec[value] += 1;
-    // println!("{} = {}", word, utils::get_value_from_chars(word, &char_to_value_map, &value_mode));
-  }
-  println!("{:?}", value_vec);
-  // let mut original_bit_to_char_map = bit_to_char_map.clone();
-  // utils::fill_bit_to_char_map(&mut rng, &mut bit_to_char_map);
-  // utils::fill_bit_to_char_map(&mut original_rng, &mut original_bit_to_char_map);
-  Err(String::from("dsadsa"))
+  fs::write(output, text_data).unwrap();
+
+  Ok(())
 }
 
 
@@ -618,7 +763,6 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
         num_bits,
         use_shuffle,
         value_mode,
-        val,
       )
     },
   }

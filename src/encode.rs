@@ -413,6 +413,34 @@ pub fn wordify(
   Ok(text_data)
 }
 
+pub fn get_value_vec_from_char_value_mode(
+  file_contents: &Vec<u8>,
+  num_bits: usize,
+) -> Vec<u8> {
+  let mut cursor = Cursor::new(&file_contents);
+  let mut num_bits_remain = file_contents.len() * 8;
+  let mut bitreader = BitReader::endian(&mut cursor, BigEndian);
+  let mut value_vec = vec![];
+
+  while num_bits_remain > 0 {
+    let num_bits_to_read = if num_bits_remain < num_bits as usize {
+      num_bits_remain as u32
+    } else {
+      num_bits as u32
+    };
+    let value: u8 = bitreader.read(num_bits_to_read).unwrap();
+    
+    // if use_shuffle {
+    //   utils::fill_bit_to_char_map(rng, bit_to_char_map);
+    // }
+
+    value_vec.push(value);
+    num_bits_remain -= num_bits_to_read as usize;
+  }
+
+  value_vec
+}
+
 pub fn get_value_vec(
   bit_to_char_map: &mut HashMap<usize, char>,
   file_contents: &Vec<u8>,
@@ -464,33 +492,103 @@ pub fn get_value_vec(
   value_vec
 }
 
+pub fn wordify_from_char_value_mode(
+  gram: &HashMap<Vec<&str>, usize>,
+  char_to_value_map: &HashMap<char, usize>,
+  n: usize,
+  file_values: Vec<u8>,
+  num_bits: usize,
+  unique_words: &Vec<&str>,
+  total_words: f64,
+  use_shuffle: bool,
+  value_mode: utils::ValueMode,
+) -> Result<String, String> {
+  let mut succ_count = 0;
+  let mut n_gram_used = vec![0; n];
+  let mut text_data = String::from("");
+  let mut current_words = get_initial_words(gram, n);
+  let mut i = 0;
 
-pub fn encode(matches: &ArgMatches) -> Result<(), String> {
-  let file = utils::get_value(matches, "file")?;
-  let output = utils::get_value(matches, "output")?;
-  let seed_str = utils::get_value(matches, "seed")?;
-  let alg_str = utils::get_value(matches, "algorithm")?;
-  let word_file_name = utils::get_value(matches, "words")?;
-  let n_depth = utils::get_numerical_value(matches, "n")?;
-  let consecutive_skips = utils::get_numerical_value(matches, "consecutive_skips")?;
-  let depth_skip_threshold = utils::get_numerical_value(matches, "depth_skip")?;
-  let num_bits = utils::get_numerical_value(matches, "bits")?;
 
-  if num_bits > 8 || num_bits < 1 {
-    return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));
+  while i < file_values.len() {
+    let current_val = file_values[i];
+
+    let mut usable_words = vec![];
+
+    for w in unique_words {
+      if *w == "." || *w == "," || *w == "?" || *w == ";" || *w == "!" {
+        // dont use punctuation in char_value mode because
+        // punctuation isnt ignored by the decoder. if you want
+        // to leave punctuation in, you would also have to leave
+        // the spaces around them which would result in a stego text
+        // like: he likes cars , toys , and trucks .
+        // for that reason, I chose to ignore punctuation
+        continue;
+      }
+
+      let w_val = utils::get_value_from_chars(w, &char_to_value_map, &value_mode);
+      if w_val == current_val as usize {
+        usable_words.push(*w);
+      }
+    }
+
+
+    match usable_words.len() {
+      0 => {
+        panic!("NOT ENOUGH WORDS WITH VALUE {}", current_val);
+      },
+      1 => {
+        succ_count += 1;
+        let best_word = &usable_words[0];
+        text_data.push_str(best_word);
+        current_words.push(best_word);
+        text_data.push_str(" ");
+        n_gram_used[0] += 1;
+      },
+      _ => {
+        let (best_word, n_used) = get_best_word(
+          gram,
+          &usable_words,
+          &current_words,
+          n,
+          total_words,
+        );
+
+        succ_count += 1;
+        n_gram_used[n_used] += 1;
+        text_data.push_str(best_word);
+        current_words.push(best_word);
+        text_data.push_str(" ");
+      }
+    };
+
+    i += 1;
   }
 
-  let alg = utils::get_algorithm_from_string(alg_str)?;
+  text_data.pop(); // remove trailing space
 
-  let (use_shuffle, value_mode) = match alg {
-    utils::Algorithm::Shuffle(mode) => {
-      (true, mode)
-    },
-    utils::Algorithm::NoShuffle(mode) => {
-      (false, mode)
-    },
-  };
+  let num_bytes = (file_values.len() * num_bits) / 8;
+  // print summary
+  println!("\nencoding using {} bits per word. file had {} bytes, ie: {} words to wordify", num_bits, num_bytes, file_values.len());
+  println!("succesfully filled {} words", succ_count);
+  println!("average bits per word: {}\n", ((num_bytes * 8) as f64 / succ_count as f64));
 
+  println!("\nN-depth summary: {:?}", n_gram_used);
+
+  Ok(text_data)
+}
+
+pub fn encode_char_bit_map(
+  file: &str,
+  output: &str,
+  seed_str: &str,
+  word_file_name: &str,
+  n_depth: usize,
+  consecutive_skips: usize,
+  depth_skip_threshold: usize,
+  num_bits: usize,
+  use_shuffle: bool,
+) -> Result<(), String> {
   let mut rng = utils::create_rng_from_seed(seed_str);
   let mut original_rng = utils::create_rng_from_seed(seed_str);
   let contents = utils::get_file_contents(file)?;
@@ -528,8 +626,113 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
     use_shuffle,
   )?;
 
-  println!("wordify: \n{}", text_data);
   fs::write(output, text_data).unwrap();
 
   Ok(())
+}
+
+pub fn encode_char_value_map(
+  file: &str,
+  output: &str,
+  seed_str: &str,
+  word_file_name: &str,
+  n_depth: usize,
+  consecutive_skips: usize,
+  depth_skip_threshold: usize,
+  num_bits: usize,
+  use_shuffle: bool,
+  value_mode: utils::ValueMode,
+) -> Result<(), String> {
+  let mut rng = utils::create_rng_from_seed(seed_str);
+  let mut original_rng = utils::create_rng_from_seed(seed_str);
+  let contents = utils::get_file_contents(file)?;
+  let mut word_file_data = utils::get_file_contents_as_string(word_file_name)?;
+
+  let mut char_to_value_map = utils::make_char_to_value_map(num_bits);
+
+  let mut value_vec = get_value_vec_from_char_value_mode(&contents, num_bits);
+
+
+  word_file_data = word_file_data.to_lowercase();
+  word_file_data = utils::format_text_for_ngrams(&word_file_data);
+  let (
+    gram_hash,
+    unique_words,
+    total_words,
+  ) = generate_ngrams(&word_file_data, n_depth);
+
+  let text_data = wordify_from_char_value_mode(
+    &gram_hash,
+    &char_to_value_map,
+    n_depth,
+    value_vec,
+    num_bits,
+    &unique_words,
+    total_words as f64,
+    use_shuffle,
+    value_mode,
+  )?;
+
+  fs::write(output, text_data).unwrap();
+
+  Ok(())
+}
+
+
+pub fn encode(matches: &ArgMatches) -> Result<(), String> {
+  let file = utils::get_value(matches, "file")?;
+  let output = utils::get_value(matches, "output")?;
+  let seed_str = utils::get_value(matches, "seed")?;
+  let alg_str = utils::get_value(matches, "algorithm")?;
+  let word_file_name = utils::get_value(matches, "words")?;
+  let n_depth = utils::get_numerical_value(matches, "n")?;
+  let consecutive_skips = utils::get_numerical_value(matches, "consecutive_skips")?;
+  let depth_skip_threshold = utils::get_numerical_value(matches, "depth_skip")?;
+  let num_bits = utils::get_numerical_value(matches, "bits")?;
+
+  if num_bits > 8 || num_bits < 1 {
+    return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));
+  }
+
+  let alg = utils::get_algorithm_from_string(alg_str, num_bits)?;
+
+  let (use_shuffle, value_mode) = match alg {
+    utils::Algorithm::Shuffle(mode) => {
+      (true, mode)
+    },
+    utils::Algorithm::NoShuffle(mode) => {
+      (false, mode)
+    },
+  };
+
+  match value_mode {
+    utils::ValueMode::CharBitMap => {
+      encode_char_bit_map(
+        file,
+        output,
+        seed_str,
+        word_file_name,
+        n_depth,
+        consecutive_skips,
+        depth_skip_threshold,
+        num_bits,
+        use_shuffle,
+      )
+    },
+    utils::ValueMode::CharValueMap(val) => {
+      println!("using char value instead of char bit with num bits: {}", val);
+      encode_char_value_map(
+        file,
+        output,
+        seed_str,
+        word_file_name,
+        n_depth,
+        consecutive_skips,
+        depth_skip_threshold,
+        num_bits,
+        use_shuffle,
+        value_mode,
+      )
+    },
+  }
 }

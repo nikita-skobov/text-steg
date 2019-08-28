@@ -39,6 +39,10 @@ pub fn get_algorithm_from_string(alg_str: &str) -> Result<Algorithm, String> {
   match alg_str {
     "char-bit" => Ok(Algorithm::NoShuffle(ValueMode::CharBitMap)),
     "char-bit-shuffle" => Ok(Algorithm::Shuffle(ValueMode::CharBitMap)),
+    "char-value" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(1))),
+    "char-value-2" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(2))),
+    "char-value-3" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(3))),
+    "char-value-4" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(4))),
     _ => Err(format!("Could not determine algorithm: {}", alg_str)),
   }
 }

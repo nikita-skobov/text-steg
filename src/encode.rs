@@ -464,33 +464,17 @@ pub fn get_value_vec(
   value_vec
 }
 
-
-pub fn encode(matches: &ArgMatches) -> Result<(), String> {
-  let file = utils::get_value(matches, "file")?;
-  let output = utils::get_value(matches, "output")?;
-  let seed_str = utils::get_value(matches, "seed")?;
-  let alg_str = utils::get_value(matches, "algorithm")?;
-  let word_file_name = utils::get_value(matches, "words")?;
-  let n_depth = utils::get_numerical_value(matches, "n")?;
-  let consecutive_skips = utils::get_numerical_value(matches, "consecutive_skips")?;
-  let depth_skip_threshold = utils::get_numerical_value(matches, "depth_skip")?;
-  let num_bits = utils::get_numerical_value(matches, "bits")?;
-
-  if num_bits > 8 || num_bits < 1 {
-    return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));
-  }
-
-  let alg = utils::get_algorithm_from_string(alg_str)?;
-
-  let (use_shuffle, value_mode) = match alg {
-    utils::Algorithm::Shuffle(mode) => {
-      (true, mode)
-    },
-    utils::Algorithm::NoShuffle(mode) => {
-      (false, mode)
-    },
-  };
-
+pub fn encode_char_bit_map(
+  file: &str,
+  output: &str,
+  seed_str: &str,
+  word_file_name: &str,
+  n_depth: usize,
+  consecutive_skips: usize,
+  depth_skip_threshold: usize,
+  num_bits: usize,
+  use_shuffle: bool,
+) -> Result<(), String> {
   let mut rng = utils::create_rng_from_seed(seed_str);
   let mut original_rng = utils::create_rng_from_seed(seed_str);
   let contents = utils::get_file_contents(file)?;
@@ -528,8 +512,96 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
     use_shuffle,
   )?;
 
-  println!("wordify: \n{}", text_data);
   fs::write(output, text_data).unwrap();
+
+  Ok(())
+}
+
+
+pub fn encode(matches: &ArgMatches) -> Result<(), String> {
+  let file = utils::get_value(matches, "file")?;
+  let output = utils::get_value(matches, "output")?;
+  let seed_str = utils::get_value(matches, "seed")?;
+  let alg_str = utils::get_value(matches, "algorithm")?;
+  let word_file_name = utils::get_value(matches, "words")?;
+  let n_depth = utils::get_numerical_value(matches, "n")?;
+  let consecutive_skips = utils::get_numerical_value(matches, "consecutive_skips")?;
+  let depth_skip_threshold = utils::get_numerical_value(matches, "depth_skip")?;
+  let num_bits = utils::get_numerical_value(matches, "bits")?;
+
+  if num_bits > 8 || num_bits < 1 {
+    return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));
+  }
+
+  let alg = utils::get_algorithm_from_string(alg_str)?;
+
+  let (use_shuffle, value_mode) = match alg {
+    utils::Algorithm::Shuffle(mode) => {
+      (true, mode)
+    },
+    utils::Algorithm::NoShuffle(mode) => {
+      (false, mode)
+    },
+  };
+
+  match value_mode {
+    utils::ValueMode::CharBitMap => {
+      encode_char_bit_map(
+        file,
+        output,
+        seed_str,
+        word_file_name,
+        n_depth,
+        consecutive_skips,
+        depth_skip_threshold,
+        num_bits,
+        use_shuffle,
+      )?;
+    },
+    utils::ValueMode::CharValueMap(val) => {
+      println!("using char value instead of char bit");
+    },
+  };
+
+  // let mut rng = utils::create_rng_from_seed(seed_str);
+  // let mut original_rng = utils::create_rng_from_seed(seed_str);
+  // let contents = utils::get_file_contents(file)?;
+  // let mut word_file_data = utils::get_file_contents_as_string(word_file_name)?;
+
+
+  // let mut bit_to_char_map = utils::make_bit_to_char_map(num_bits);
+  // let mut original_bit_to_char_map = bit_to_char_map.clone();
+  // utils::fill_bit_to_char_map(&mut rng, &mut bit_to_char_map);
+  // utils::fill_bit_to_char_map(&mut original_rng, &mut original_bit_to_char_map);
+
+
+  // let value_vec = get_value_vec(&mut bit_to_char_map, &contents, num_bits, use_shuffle, &mut rng);
+
+
+  // word_file_data = word_file_data.to_lowercase();
+  // word_file_data = utils::format_text_for_ngrams(&word_file_data);
+  // let (
+  //   gram_hash,
+  //   unique_words,
+  //   total_words,
+  // ) = generate_ngrams(&word_file_data, n_depth);
+
+
+  // let text_data = wordify(
+  //   &gram_hash,
+  //   n_depth,
+  //   value_vec,
+  //   &mut original_rng,
+  //   &mut original_bit_to_char_map,
+  //   &unique_words,
+  //   total_words as f64,
+  //   consecutive_skips,
+  //   depth_skip_threshold,
+  //   use_shuffle,
+  // )?;
+
+  // println!("wordify: \n{}", text_data);
+  // fs::write(output, text_data).unwrap();
 
   Ok(())
 }

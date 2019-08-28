@@ -497,51 +497,34 @@ pub fn wordify_from_char_value_mode(
   char_to_value_map: &HashMap<char, usize>,
   n: usize,
   file_values: Vec<u8>,
-  file_bits: usize,
+  num_bits: usize,
   unique_words: &Vec<&str>,
   total_words: f64,
-  consecutive_skips: usize,
-  depth_skip_threshold: usize,
   use_shuffle: bool,
   value_mode: utils::ValueMode,
 ) -> Result<String, String> {
-  let mut num_bits = file_bits;
-
-  // let num_words = unique_words.len();
   let mut succ_count = 0;
-  let mut fail_count = 0;
-  let mut skip_count = 0;
   let mut n_gram_used = vec![0; n];
   let mut text_data = String::from("");
   let mut current_words = get_initial_words(gram, n);
   let mut i = 0;
-  let mut consecutive_skips_used = 0;
 
-  // let mut skip_words = vec![];
-  // if !use_shuffle {
-  //   for w in unique_words {
-  //     if utils::is_skip_word(w, &char_to_bit_map) {
-  //       skip_words.push(*w);
-  //     }
-  //   }
-  //   // if not shuffling, skip words get filled in once before
-  //   // iterating.
-  // }
 
   while i < file_values.len() {
     let current_val = file_values[i];
-    let mut used_skip_word = false;
 
     let mut usable_words = vec![];
 
-    // let mut value_num_list = vec![0; max_value];
     for w in unique_words {
-      if *w == "." || *w == "," || *w == "?" || *w == ";" {
+      if *w == "." || *w == "," || *w == "?" || *w == ";" || *w == "!" {
+        // dont use punctuation in char_value mode because
+        // punctuation isnt ignored by the decoder. if you want
+        // to leave punctuation in, you would also have to leave
+        // the spaces around them which would result in a stego text
+        // like: he likes cars , toys , and trucks .
+        // for that reason, I chose to ignore punctuation
         continue;
       }
-      // let word_val = get_value_from_word(w, char_value_map, max_value);
-      // // println!("value for {}: {}", w, get_value_from_word(w, char_value_map, 2));
-      // value_num_list[word_val] += 1;
 
       let w_val = utils::get_value_from_chars(w, &char_to_value_map, &value_mode);
       if w_val == current_val as usize {
@@ -549,8 +532,7 @@ pub fn wordify_from_char_value_mode(
       }
     }
 
-    println!("number of words that fit value: {} = {}", current_val, usable_words.len());
-    // panic!("Dsadsa");
+
     match usable_words.len() {
       0 => {
         panic!("NOT ENOUGH WORDS WITH VALUE {}", current_val);
@@ -562,10 +544,6 @@ pub fn wordify_from_char_value_mode(
         current_words.push(best_word);
         text_data.push_str(" ");
         n_gram_used[0] += 1;
-        consecutive_skips_used = 0;
-        // there is only one usable word, so use it without
-        // estimating any probabilities. ngram used a depth
-        // of 0 since we are not evaluating ngrams here.
       },
       _ => {
         let (best_word, n_used) = get_best_word(
@@ -581,11 +559,6 @@ pub fn wordify_from_char_value_mode(
         text_data.push_str(best_word);
         current_words.push(best_word);
         text_data.push_str(" ");
-        consecutive_skips_used = 0;
-        // if not using a skip word, we encoded the best possible word according
-        // to ngrams. add the best word to the text output, as well as the current
-        // words vec which is used to determine word probabilities for the next
-        // iteration
       }
     };
 
@@ -597,10 +570,8 @@ pub fn wordify_from_char_value_mode(
   let num_bytes = (file_values.len() * num_bits) / 8;
   // print summary
   println!("\nencoding using {} bits per word. file had {} bytes, ie: {} words to wordify", num_bits, num_bytes, file_values.len());
-  println!("succesfully filled {} words", (succ_count + skip_count));
-  println!("of the {} words, {} were skip words", (succ_count + skip_count), skip_count);
-  println!("failed to find a word {} times", fail_count);
-  println!("average bits per word: {}\n", ((num_bytes * 8) as f64 / (succ_count + skip_count) as f64));
+  println!("succesfully filled {} words", succ_count);
+  println!("average bits per word: {}\n", ((num_bytes * 8) as f64 / succ_count as f64));
 
   println!("\nN-depth summary: {:?}", n_gram_used);
 
@@ -695,11 +666,9 @@ pub fn encode_char_value_map(
     &char_to_value_map,
     n_depth,
     value_vec,
-    contents.len() * 8,
+    num_bits,
     &unique_words,
     total_words as f64,
-    consecutive_skips,
-    depth_skip_threshold,
     use_shuffle,
     value_mode,
   )?;
@@ -766,46 +735,4 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
       )
     },
   }
-
-  // let mut rng = utils::create_rng_from_seed(seed_str);
-  // let mut original_rng = utils::create_rng_from_seed(seed_str);
-  // let contents = utils::get_file_contents(file)?;
-  // let mut word_file_data = utils::get_file_contents_as_string(word_file_name)?;
-
-
-  // let mut bit_to_char_map = utils::make_bit_to_char_map(num_bits);
-  // let mut original_bit_to_char_map = bit_to_char_map.clone();
-  // utils::fill_bit_to_char_map(&mut rng, &mut bit_to_char_map);
-  // utils::fill_bit_to_char_map(&mut original_rng, &mut original_bit_to_char_map);
-
-
-  // let value_vec = get_value_vec(&mut bit_to_char_map, &contents, num_bits, use_shuffle, &mut rng);
-
-
-  // word_file_data = word_file_data.to_lowercase();
-  // word_file_data = utils::format_text_for_ngrams(&word_file_data);
-  // let (
-  //   gram_hash,
-  //   unique_words,
-  //   total_words,
-  // ) = generate_ngrams(&word_file_data, n_depth);
-
-
-  // let text_data = wordify(
-  //   &gram_hash,
-  //   n_depth,
-  //   value_vec,
-  //   &mut original_rng,
-  //   &mut original_bit_to_char_map,
-  //   &unique_words,
-  //   total_words as f64,
-  //   consecutive_skips,
-  //   depth_skip_threshold,
-  //   use_shuffle,
-  // )?;
-
-  // println!("wordify: \n{}", text_data);
-  // fs::write(output, text_data).unwrap();
-
-  // Ok(())
 }

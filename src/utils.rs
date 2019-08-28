@@ -93,9 +93,6 @@ pub fn make_char_to_value_map(exponent: usize) -> HashMap<char, usize> {
     char_to_value_map.insert(COMMON_CHARS[common_index], current_val);
     char_to_value_map.insert(COMMON_CHARS[uncommon_index], current_val);
 
-    // println!("{}: {}", COMMON_CHARS[i], current_val);
-    // println!("{}: {}", COMMON_CHARS[uncommon_index], current_val);
-
     current_val += 1;
     if current_val > max_val {
       current_val = 0;

@@ -79,6 +79,41 @@ pub fn make_bit_to_char_map(num_bits: usize) -> HashMap<usize, char> {
   bit_to_char_map
 }
 
+pub fn make_char_to_value_map(max_exponent: usize) -> HashMap<char, usize> {
+  let mut char_to_value_map: HashMap<char, usize> = HashMap::new();
+
+  let max_val: usize = (2 as usize).pow(max_exponent as u32) - 1;
+  let mut current_val = 0;
+  let mut max_it = COMMON_CHARS.len() / 2;
+  for i in 0..max_it {
+    let common_index = i;
+    let uncommon_index = COMMON_CHARS.len() - i - 1;
+    
+    char_to_value_map.insert(COMMON_CHARS[common_index], current_val);
+    char_to_value_map.insert(COMMON_CHARS[uncommon_index], current_val);
+
+    // println!("{}: {}", COMMON_CHARS[i], current_val);
+    // println!("{}: {}", COMMON_CHARS[uncommon_index], current_val);
+
+    current_val += 1;
+    if current_val > max_val {
+      current_val = 0;
+    }
+    // current val gets assigned simultaneously to the most common and
+    // least common character at any timestep. for each timestep,
+    // current val gets incremented until it surpasses the maximum val
+    // then wraps back to 0.
+    // eg: maximum val is 7 if max_exponent = 3,
+    // because 2^3 = 8. 8 - 1 = 7.
+    // the first 7 most common characters get mapped 0, 1, 2, ... 7,
+    // as well as the 7 least common characters.
+    // the 9th character on either side then gets mapped to 0 and the
+    // cycle restarts.
+  }
+
+  char_to_value_map
+}
+
 fn create_hash(text: &str) -> String {
   let mut hasher = Sha256::default();
   hasher.input(text.as_bytes());

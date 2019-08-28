@@ -79,10 +79,6 @@ pub fn decode_char_value_mode(
   let mut total_bits = ((encoded_words.len() * num_bits) / 8) * 8;
 
   for word in encoded_words {
-    if utils::is_skip_word(word, &char_to_value_map) {
-      continue;
-    }
-
     let value = utils::get_value_from_chars(word, &char_to_value_map, &value_mode);
 
     // if use_shuffle {

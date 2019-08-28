@@ -69,7 +69,7 @@ pub fn decode_char_value_mode(
   let mut rng = utils::create_rng_from_seed(seed_str);
 
   let mut char_to_value_map = utils::make_char_to_value_map(num_bits);
-
+  utils::shuffle_char_value_map(&mut rng, &mut char_to_value_map);
 
   let mut bitwriter = BitWriter::endian(Vec::new(), BigEndian);
   let contents = utils::get_file_contents_as_string(file)?;
@@ -81,10 +81,9 @@ pub fn decode_char_value_mode(
   for word in encoded_words {
     let value = utils::get_value_from_chars(word, &char_to_value_map, &value_mode);
 
-    // if use_shuffle {
-    //   utils::fill_bit_to_char_map(&mut rng, &mut bit_to_char_map);
-    //   char_to_bit_map = utils::make_char_to_bit_map(&bit_to_char_map);
-    // }
+    if use_shuffle {
+      utils::shuffle_char_value_map(&mut rng, &mut char_to_value_map);
+    }
 
     let write_bits = if total_bits > num_bits {
       num_bits as u32

@@ -40,6 +40,7 @@ pub fn get_algorithm_from_string(alg_str: &str, num_bits: usize) -> Result<Algor
     "char-bit" => Ok(Algorithm::NoShuffle(ValueMode::CharBitMap)),
     "char-bit-shuffle" => Ok(Algorithm::Shuffle(ValueMode::CharBitMap)),
     "char-value" => Ok(Algorithm::NoShuffle(ValueMode::CharValueMap(num_bits))),
+    "char-value-shuffle" => Ok(Algorithm::Shuffle(ValueMode::CharValueMap(num_bits))),
     _ => Err(format!("Could not determine algorithm: {}", alg_str)),
   }
 }
@@ -233,6 +234,33 @@ pub fn get_value_from_chars(chars: &str, char_map: &HashMap<char, usize>, mode: 
   }
 }
 
+pub fn shuffle_char_value_map(rng: &mut StdRng, char_to_value_map: &mut HashMap<char, usize>) {
+  let mut char_values = vec![];
+  let mut char_keys = vec![];
+  for key in char_to_value_map.keys() {
+    char_keys.push(key.clone());
+  }
+
+  char_keys.sort_by(|a, b| a.cmp(b));
+  for key in &char_keys {
+    char_values.push(char_to_value_map.get(key).unwrap().clone());
+  }
+
+  let mut chars = COMMON_CHARS.to_vec();
+  while chars.len() > 0 {
+    let current_char = chars[0];
+    let random_index = rng.gen_range(0, chars.len());
+    let random_char = chars[random_index];
+    let current_val = char_to_value_map.get(&current_char).unwrap().clone();
+    let random_val = char_to_value_map.get(&random_char).unwrap().clone();
+    chars.remove(random_index);
+    chars.remove(0);
+    char_to_value_map.remove(&current_char);
+    char_to_value_map.remove(&random_char);
+    char_to_value_map.insert(current_char, random_val);
+    char_to_value_map.insert(random_char, current_val);
+  }
+}
 
 pub fn fill_bit_to_char_map(rng: &mut StdRng, bit_to_char_map: &mut HashMap<usize, char>) {
   let mut bit_keys = vec![];

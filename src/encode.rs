@@ -416,6 +416,9 @@ pub fn wordify(
 pub fn get_value_vec_from_char_value_mode(
   file_contents: &Vec<u8>,
   num_bits: usize,
+  use_shuffle: bool,
+  rng: &mut StdRng,
+  char_to_value_map: &mut HashMap<char, usize>,
 ) -> Vec<u8> {
   let mut cursor = Cursor::new(&file_contents);
   let mut num_bits_remain = file_contents.len() * 8;
@@ -430,9 +433,9 @@ pub fn get_value_vec_from_char_value_mode(
     };
     let value: u8 = bitreader.read(num_bits_to_read).unwrap();
     
-    // if use_shuffle {
-    //   utils::fill_bit_to_char_map(rng, bit_to_char_map);
-    // }
+    if use_shuffle {
+      utils::shuffle_char_value_map(rng, char_to_value_map);
+    }
 
     value_vec.push(value);
     num_bits_remain -= num_bits_to_read as usize;
@@ -494,7 +497,7 @@ pub fn get_value_vec(
 
 pub fn wordify_from_char_value_mode(
   gram: &HashMap<Vec<&str>, usize>,
-  char_to_value_map: &HashMap<char, usize>,
+  char_to_value_map: &mut HashMap<char, usize>,
   n: usize,
   file_values: Vec<u8>,
   num_bits: usize,
@@ -502,6 +505,7 @@ pub fn wordify_from_char_value_mode(
   total_words: f64,
   use_shuffle: bool,
   value_mode: utils::ValueMode,
+  rng: &mut StdRng,
 ) -> Result<String, String> {
   let mut succ_count = 0;
   let mut n_gram_used = vec![0; n];
@@ -561,6 +565,10 @@ pub fn wordify_from_char_value_mode(
         text_data.push_str(" ");
       }
     };
+
+    if use_shuffle {
+      utils::shuffle_char_value_map(rng, char_to_value_map);
+    }
 
     i += 1;
   }
@@ -649,8 +657,18 @@ pub fn encode_char_value_map(
   let mut word_file_data = utils::get_file_contents_as_string(word_file_name)?;
 
   let mut char_to_value_map = utils::make_char_to_value_map(num_bits);
+  let mut original_char_to_value_map = char_to_value_map.clone();
+  utils::shuffle_char_value_map(&mut rng, &mut char_to_value_map);
+  utils::shuffle_char_value_map(&mut original_rng, &mut original_char_to_value_map);
+  // panic!("dsa");
 
-  let mut value_vec = get_value_vec_from_char_value_mode(&contents, num_bits);
+  let mut value_vec = get_value_vec_from_char_value_mode(
+    &contents,
+    num_bits,
+    use_shuffle,
+    &mut rng,
+    &mut char_to_value_map,
+  );
 
 
   word_file_data = word_file_data.to_lowercase();
@@ -663,7 +681,7 @@ pub fn encode_char_value_map(
 
   let text_data = wordify_from_char_value_mode(
     &gram_hash,
-    &char_to_value_map,
+    &mut original_char_to_value_map,
     n_depth,
     value_vec,
     num_bits,
@@ -671,6 +689,7 @@ pub fn encode_char_value_map(
     total_words as f64,
     use_shuffle,
     value_mode,
+    &mut original_rng,
   )?;
 
   fs::write(output, text_data).unwrap();
@@ -720,7 +739,6 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
       )
     },
     utils::ValueMode::CharValueMap(val) => {
-      println!("using char value instead of char bit with num bits: {}", val);
       encode_char_value_map(
         file,
         output,

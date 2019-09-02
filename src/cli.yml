@@ -7,6 +7,12 @@ subcommands:
   - decode:
       about: given a stego-text file, decode into the original source file
       args:
+        - password:
+            long: pass
+            short: p
+            takes_value: true
+            default_value: 'false'
+            long_help: enter seed as password so it does not show {n} up in terminal history {n}
         - algorithm:
             short: a
             long: algo

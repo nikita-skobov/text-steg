@@ -719,7 +719,7 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
   match password_str {
     "true" => {
       // get seed string interactively
-      pass = rpassword::prompt_password_stderr("Enter seed: ").unwrap();
+      pass = rpassword::prompt_password_stderr("Enter password: ").unwrap();
       seed_str = pass.as_str();
     },
     _ => (),

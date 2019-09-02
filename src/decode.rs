@@ -2,6 +2,7 @@ use std::fs;
 
 use clap::ArgMatches;
 use bitstream_io::{BigEndian, BitWriter};
+use rpassword;
 
 use super::utils;
 
@@ -106,13 +107,24 @@ pub fn decode_char_value_mode(
 pub fn decode(matches: &ArgMatches) -> Result<(), String> {
   let file = utils::get_value(matches, "file")?;
   let output = utils::get_value(matches, "output")?;
-  let seed_str = utils::get_value(matches, "seed")?;
+  let password_str = utils::get_value(matches, "password")?;
+  let mut seed_str = utils::get_value(matches, "seed")?;
   let alg_str = utils::get_value(matches, "algorithm")?;
   let num_bits = utils::get_numerical_value(matches, "bits")?;
 
   if num_bits > 8 || num_bits < 1 {
     return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));
   }
+
+  let pass;
+  match password_str {
+    "true" => {
+      // get seed string interactively
+      pass = rpassword::prompt_password_stderr("Enter password that file was encoded with: ").unwrap();
+      seed_str = pass.as_str();
+    },
+    _ => (),
+  };
 
   let alg = utils::get_algorithm_from_string(alg_str, num_bits)?;
 

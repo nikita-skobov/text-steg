@@ -59,6 +59,12 @@ subcommands:
             long: words
             takes_value: true
             long_help: file used to generate ngram structure.
+        - password:
+            long: pass
+            short: p
+            takes_value: true
+            default_value: 'false'
+            long_help: enter seed as password so it does not show {n} up in terminal history {n}
         - seed:
             short: s
             long: seed

@@ -6,6 +6,7 @@ use clap::ArgMatches;
 use rand::{Rng, prelude::StdRng};
 use bitstream_io::{BigEndian, BitReader};
 use ngrams::Ngram;
+use rpassword;
 
 use super::utils;
 
@@ -701,7 +702,8 @@ pub fn encode_char_value_map(
 pub fn encode(matches: &ArgMatches) -> Result<(), String> {
   let file = utils::get_value(matches, "file")?;
   let output = utils::get_value(matches, "output")?;
-  let seed_str = utils::get_value(matches, "seed")?;
+  let mut seed_str = utils::get_value(matches, "seed")?;
+  let password_str = utils::get_value(matches, "password")?;
   let alg_str = utils::get_value(matches, "algorithm")?;
   let word_file_name = utils::get_value(matches, "words")?;
   let n_depth = utils::get_numerical_value(matches, "n")?;
@@ -712,6 +714,16 @@ pub fn encode(matches: &ArgMatches) -> Result<(), String> {
   if num_bits > 8 || num_bits < 1 {
     return Err(format!("Bits must be between 1 and 8 inclusively, you provided {}", num_bits));
   }
+
+  let pass;
+  match password_str {
+    "true" => {
+      // get seed string interactively
+      pass = rpassword::prompt_password_stderr("Enter seed: ").unwrap();
+      seed_str = pass.as_str();
+    },
+    _ => (),
+  };
 
   let alg = utils::get_algorithm_from_string(alg_str, num_bits)?;
 
